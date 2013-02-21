@@ -1,0 +1,18 @@
+primary_id,description,type,currency,counter_currency
+USD,US Dollar,currency,,
+JPY,Japanese Yen,currency,,
+CAD,Canadian Dollar,currency,,
+AUD,Australian Dollar,currency,,
+GBP,British Pound,currency,,
+EUR,Euro,currency,,
+KRW,"Korea (South), Won",currency,,
+HKD,Hong Kong Dollar,currency, ,
+CHF,Swiss Franc,currency,,
+EUR.USD,,exchange_rate,USD,EUR
+GBP.USD,,exchange_rate,USD,GBP
+EUR.JPY,,exchange_rate,JPY,EUR
+USD.JPY,,exchange_rate,JPY,USD
+AUD.JPY,,exchange_rate,JPY,AUD
+AUD.USD,,exchange_rate,USD,AUD
+KRW.USD,,exchange_rate,USD,KRW
+EUR.CHF,,exchange_rate,CHF,EUR

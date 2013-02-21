@@ -1,0 +1,29 @@
+Package: IBData
+Maintainer: Charlie Friedemann
+    <cfriedem@gmail.com>
+License: GPL-3
+Title: IB Real-time Data package
+Type: Package
+LazyLoad: yes
+Author: Charlie Friedemann
+Description: Maintain real-time market data across multiple R sessions, even on
+    Windows. This uses the IBrokers package by Jeffrey Ryan in conjuction with
+    the Rshare package.
+Version: 0.1-2
+Date: 2012-05-01
+Depends:
+    Rshare(>= 1.0),
+    IBrokers (>= 0.9-3)
+Suggests:
+    FinancialInstrument (>= 0.14.4),
+    XML
+Collate:
+    'contracts.R'
+    'eWrapper.R'
+    'eReader.R'
+    'eClient.R'
+    'server.R'
+    'zzz.R'
+    'symbolData.R'
+    'twsIDs.R'
+    'rshareHooks.R'

@@ -1,0 +1,4 @@
+primary_id,description,exchange,currency,tick_size,multiplier,TZ,primary_start,primary_end,electronic_start,electronic_end,type,month_cycle,active_months,exchange_id,contract_specification,Comments 
+CL,Crude Light,NYM,USD,0.01,1000,America/New_York,09:00,14:30,17:00,16:15,future,"F,G,H,J,K,M,N,Q,U,V,X,Z",10,WS,http://www.cmegroup.com/trading/energy/crude-oil/light-sweet-crude-cash-settled_contract_specifications.html,
+ES,E-mini S&P 500,CME,USD,0.25,50,America/Chicago,17:00,15:30,,,future,"H,M,U,Z",2,,http://www.cmegroup.com/trading/equity-index/us-index/e-mini-sandp500_contract_specifications.html,Market is closed from 15:15 to 15:30 Mon - Thur. No trading hours listed for Friday. All hours listed under CME Globex. 
+GC,Gold,COMEX,USD,0.1,100,America/New_York,07:20,12:30,17:00,16:15,future,"G,J,M,Q,Z",5,GC,http://www.cmegroup.com/trading/metals/precious/gold_contract_specifications.html,

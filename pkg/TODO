@@ -1,0 +1,7 @@
+- add (limited) depth-of-book functionality, likely using OrderBook (or whatever works with quantstrat)
+- better order functionality
+- account / portfolio state monitoring
+- reference class accessors (get/set) apparently can be special functions... look into this
+- separate client methods and maybe ewrapper methods into separate files by function (requests, internal helpers, etc)
+- other request hooks
+- add verbose flag to a lot of requests
