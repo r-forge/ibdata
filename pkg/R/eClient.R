@@ -101,7 +101,7 @@ eClient <- setRefClass("eClient",
 			#params$load.instruments <- NULL
 			
 			if (is.null(params$clientId)) params$clientId <- 1L else params$clientId <- as.integer(params$clientId) # default clientId is 1
-			if (is.null(params$nextTickerId)) params$nextTickerId <- "1" else params$nextTickerId <- as.character(params$nextTickerId) # default nextTickerId is "1"
+			#if (is.null(params$nextTickerId)) params$nextTickerId <- "1" else params$nextTickerId <- as.character(params$nextTickerId) # default nextTickerId is "1"
 			clientParameters <<- params
 			
 			# Create eClient-specific eWrapper for certain requests / methods
@@ -177,14 +177,10 @@ eClient <- setRefClass("eClient",
 		
 		# Ticker Id stuff: bind each ticker Id to a symbol
 		getNextTickerId = function() {
-			
-			as.character(.self$getParameter("nextTickerId"))
-		},
-		incrementNextTickerId = function(inc = 1L) {
-			inc <- as.integer(inc)
-			tickerId <- as.character(as.integer(.self$getParameter("nextTickerId")) + inc)
-			.self$parameters(nextTickerId = tickerId)
-			tickerId
+			idList <- .self$getIdList()
+			if (length(idList) > 0) {
+				nextId <- as.character(max(0,as.integer(unlist(lapply(idList,"[[","tickerId")))) + 1)
+			} else nextId <- as.character(1L)
 		},
 		getIdList = function() {
 			.self$getParameter("idList")
@@ -265,8 +261,10 @@ eClient <- setRefClass("eClient",
 		},
 		
 		# TickerId list: symbol-tickerId mapping and symbol mkt data subscription status
-		addSymbolToIdList = function(symbol, tickerId, set.subscribed = TRUE) {
+		addSymbolToIdList = function(symbol, tickerId = .self$getNextTickerId(), set.subscribed = FALSE) {
 			tickerId <- as.character(tickerId)
+			if (length(tickerId) == 0) stop("invalid tickerId")
+			if (length(tickerId) > 1 || length(symbol) > 1) stop("symbol and tickerId may only be of length 1")
 			idList <- .self$getIdList()
 			
 			if (length(idList) > 0) {
@@ -276,6 +274,7 @@ eClient <- setRefClass("eClient",
 			
 			idList[[symbol]] <- list(tickerId = tickerId, subscribed=set.subscribed)
 			.self$setIdList(idList)
+			invisible(tickerId)
 		},
 		removeSymbolFromIdList = function(symbol) {
 			idList <- .self$getIdList()
@@ -300,17 +299,15 @@ eClient <- setRefClass("eClient",
 			.self$setIdList(idList)
 			invisible(TRUE)
 		},
-		symbolToTickerId = function(symbol, addIfNot = TRUE) {
+		symbolToTickerId = function(symbol) {
 			idList <- .self$getIdList()
 			if (length(idList) == 0) return(NULL)
 			
 			idx <- which(names(idList) == symbol)
 			if (length(idx) == 0) {
-				if (addIfNot) {
-					
-				} else return(NULL) #stop(paste(symbol,"is not in the ticker id list"))
-			
-			as.character(idList[[symbol]]$tickerId) # as.integer is really there just to remove name
+				return(NULL) #stop(paste(symbol,"is not in the ticker id list"))
+			}
+			as.character(idList[[symbol]]$tickerId) 
 		},
 		tickerIdToSymbol = function(tickerId) {
 			tickerId <- as.character(tickerId)
@@ -336,6 +333,10 @@ eClient <- setRefClass("eClient",
 			idx <- which(unlist(lapply(idList,"[[","subscribed"),use.names=FALSE))
 			names(idList)[idx]
 		},
+		inSymbolList = function(symbol) {
+			symbol %in% names(.self$getIdList())
+		},
+		
 		
 		# Subcription methods
 		getContractByConId = function(conId) {
@@ -368,7 +369,7 @@ eClient <- setRefClass("eClient",
 			
 			.self$subscribeToContracts(Contracts, requestData=requestData)
 		},
-		subscribeToContracts = function(Contracts, requestData = TRUE) {
+		subscribeToContracts = function(Contracts, requestData = TRUE, verbose=FALSE, ...) {
 			.self$checkConnected("subscribeToContracts")
 			
 			# check Contracts
@@ -400,9 +401,17 @@ eClient <- setRefClass("eClient",
 			# we are subscribing to contracts in newContracts, check if subscribed, if not reqMktData
 			for (i in 1:length(newContracts)) {
 				contract <- newContracts[[i]]$contract
-				symbol <- contract$local
+				symbol <- ifelse(is.null(contract$local), contract$symbol, contract$local)
+				if (!.self$inSymbolList(symbol)) {
+					tickerId <- .self$addSymbolToIdList(symbol)
+				} else {
+					tickerId <- symbolToTickerId(symbol)
+				}
 				if (!.self$isSubscribed(symbol)) {
-					.self$reqMktData(contract)
+					.self$reqMktData(contract, tickerId=tickerId, ...)
+					.self$setSubscribed(symbol)
+				} else if (verbose) {
+					warning(paste("already subscribed to symbol",symbol))
 				}
 			}
 		},
@@ -500,7 +509,7 @@ eClient <- setRefClass("eClient",
 			.reqAccountUpdates(conn, "1", acctCode) # subscribe
 			if (!stay.subscribed) .reqAccountUpdates(conn, "0", acctCode) # and then unsubscribe
 		},
-		reqMktData = function(Contracts, tickerId = NULL, tickGenerics = "100,101,104,106,165,221,233,236", flagSubscribed = TRUE) {
+		reqMktData = function(Contracts, tickerId = NULL, tickGenerics = "100,101,104,106,165,221,233,236") {
 			.self$checkConnected("reqMktData")
 			con <- .self$getConnection()
 			
@@ -509,40 +518,40 @@ eClient <- setRefClass("eClient",
 			
 			snapshot <- "0"
 			VERSION <- "9"
-			if (is.null(tickerId)) tickerId <- .self$symbolToTickerId(ifelse(is.null(Contracts[[1]]$local),Contracts[[1]]$symbol,Contracts[[1]]$local))
-			if (is.null(tickerId)) { # no tickerId provided, so generate one and then increment
-				tickerId <- .self$getNextTickerId()
-				autoIncrement <- TRUE
-			} else { #tickerId provided
-				tickerId <- as.character(tickerId)
-				autoId <- FALSE
-				if (length(tickerId) > 1) { # multiple tickerIds provided, don't increment or generate
-					if (length(tickerId) != length(Contracts)) stop("tickerId length does not match Contracts length")
-					tickerIds <- tickerId
-					tickerId <- tickerIds[1]
-					autoIncrement <- FALSE
-				} else { # single tickerIdProvided, increment each time
-					autoIncrement <- TRUE
-				}
-			}
 			
 			# request contracts
+			ret <- character(length(Contracts))
 			for (i in 1:length(Contracts)) {
-				req <- c(.twsOutgoingMSG$REQ_MKT_DATA, VERSION, tickerId, 
+				# if tickerId NULL try to get from client list
+				symbol <- ifelse(is.null(Contracts[[i]]$local), Contracts[[i]]$symbol, Contracts[[i]]$local)
+				if (!.self$inSymbolList(symbol)) {
+					if (!is.null(tickerId)) {
+						if (length(tickerId) == length(Contracts)) {
+							contractTickerId <- .self$addSymbolToIdList(symbol, tickerId=as.character(tickerId[i]))
+						} else if (i == 1) {
+							contractTickerId <- .self$addSymbolToIdList(symbol, tickerId=as.character(tickerId[1]))
+						} else {
+							contractTickerId <- .self$addSymbolToIdList(symbol)
+						}
+					} else contractTickerId <- .self$addSymbolToIdList(symbol)
+				} else {
+					if (.self$isSubscribed(symbol)) {
+						warning(paste("already subscribed to symbol",symbol))
+						next
+					}
+					contractTickerId <- symbolToTickerId(symbol) #just use symbol tickerId
+				}
+			
+				req <- c(.twsOutgoingMSG$REQ_MKT_DATA, VERSION, contractTickerId, 
 					Contracts[[i]]$conId, Contracts[[i]]$symbol, 
 					Contracts[[i]]$sectype, Contracts[[i]]$expiry, 
 					Contracts[[i]]$strike, Contracts[[i]]$right, Contracts[[i]]$multiplier, 
 					Contracts[[i]]$exch, Contracts[[i]]$primary, Contracts[[i]]$currency, 
 					Contracts[[i]]$local, "0", tickGenerics, snapshot)
 				writeBin(req, con)
-				
-				# mark as subscribed
-				if (flagSubscribed) .self$addSymbolToIdList(Contracts[[i]]$local,tickerId) 
-				
-				# increment ticker id or set to next value in id vector
-				if (autoIncrement) tickerId <- .self$incrementNextTickerId() else if (i < length(Contracts)) tickerId <- tickerId[i+1]
+				ret[i] <- contractTickerId
 			}
-			
+			invisible(ret)
 		},
 		cancelMktData = function(tickerIds, flagUnsubscribed = TRUE) {
 			.self$checkConnected("cancelMktData")

@@ -157,8 +157,10 @@ eReader <- setRefClass("eReader",
 			while (TRUE) {
 				if (!socketSelect(list(con), FALSE, 0.25)) next
 				curMsg <- .Internal(readBin(con, "character", 1L, NA_integer_, TRUE, FALSE))
-
-				.self$processMsg(curMsg, con, ...)
+				
+				if (length(curMsg) > 0) {
+					.self$processMsg(curMsg, con, ...)
+				}
 			}
 		},
 		processMsg = function(curMsg, con, eWrapper=.self$getWrapper(), ...) {

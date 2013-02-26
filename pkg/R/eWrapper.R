@@ -66,6 +66,7 @@ eWrapper.IBData <- setRefClass("eWrapper.IBData",
 				# register Rshare hooks for accessing market data and controlling client
 				registerRshareHook("symbolDataReq",symbolDataReqHook,port=port,doResponse=TRUE)
 				registerRshareHook("contractDetailsReq",contractDetailsReqHook,port=port,doResponse=TRUE)
+				registerRshareHook("subscribeToContractsReq",subscribeToContractsReqHook,port=port,doResponse=FALSE)
 			}
 			
 		},

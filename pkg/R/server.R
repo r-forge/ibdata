@@ -57,7 +57,7 @@ is.subscribed <- function() {
 clientGetSymbolData <- function(Symbols, fields = NULL, port = .IBData$port) {
 	if (!is.subscribed()) stop("must be subscribed to IBData server")
 	
-	req <- structure(list(Symbols = Symbols, fields = fields),class="symbolDataReq")
+	req <- structure(list(Symbols = Symbols, fields = fields), class="symbolDataReq")
 	res <- sendRshare(req, port, block=TRUE)
 	res
 }
@@ -66,8 +66,17 @@ clientGetSymbolData <- function(Symbols, fields = NULL, port = .IBData$port) {
 clientReqContractDetails <- function (Contracts, reqId = "1", ..., port = .IBData$port) {
 	if (!is.subscribed()) stop("must be subscribed to IBData server")
 	
-	req <- structure(c(list(Contracts = Contracts, reqId = reqId), list(...)) ,class="contractDetailsReq")
+	req <- structure(c(list(Contracts = Contracts, reqId = reqId), list(...)), class="contractDetailsReq")
 	res <- sendRshare(req, port, block=TRUE)
+	res
+}
+
+#' @export
+clientSubscribeToContracts <- function (Contracts, ..., port = .IBData$port) {
+	if (!is.subscribed()) stop("must be subscribed to IBData server")
+	
+	req <- structure(c(list(Contracts = Contracts), list(...)), class="subscribeToContractsReq")
+	res <- sendRshare(req, port, block=FALSE)
 	res
 }
 

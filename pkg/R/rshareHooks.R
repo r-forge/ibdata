@@ -10,8 +10,12 @@ symbolDataReqHook <- function(obj, port) {
 	if (!is.null(fields)) symData[fields] else symData
 }
 
-contractDetailsReqHook <- function (obj, port) {
+contractDetailsReqHook <- function(obj, port) {
 	do.call(.IBData$client$reqContractDetails,obj)
+}
+
+subscribeToContractsReqHook <- function(obj, port) {
+	do.call(.IBData$client$subscribeToContracts,obj)
 }
 
 ## TODO: implement these request hooks
