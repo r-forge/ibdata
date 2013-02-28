@@ -4,7 +4,7 @@
 \usage{
   startIBDataServer(Contracts = NULL,
     use.instruments = FALSE, clientId = 1, port = 7789,
-    stopOnExit = FALSE)
+    startServer = FALSE, stopOnExit = FALSE)
 }
 \description{
   This function is basically a higher level wrapper to the

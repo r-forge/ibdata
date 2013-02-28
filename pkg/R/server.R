@@ -3,12 +3,12 @@
 #' This function is basically a higher level wrapper to the eClient. It creates an eClient object and initializes it with the eWrapper.IBData wrapper. 
 #' This function also initializes the IBData server, allowing other R sessions to subscribe to market data from this eClient as well as issue commands to the client.
 #' @export
-startIBDataServer <- function(Contracts = NULL, use.instruments = FALSE, clientId = 1, port = 7789, stopOnExit = FALSE) {
+startIBDataServer <- function(Contracts = NULL, use.instruments = FALSE, clientId = 1, port = 7789, startServer = FALSE, stopOnExit = FALSE) {
 	# if (!use.instruments && is.null(Contracts)) stop("Contracts must be provided if use.instruments is FALSE")
 	if (use.instruments) require(FinancialInstrument)
 	
 	# Initialize eClient using IBData eWrapper and connect to TWS
-	client <- eClient$new(eWrapperGenerator=eWrapper.IBData, clientId=clientId, wrapperArgs=list(port=as.integer(port),startServer=FALSE))
+	client <- eClient$new(eWrapperGenerator=eWrapper.IBData, clientId=clientId, wrapperArgs=list(port=as.integer(port),startServer=startServer))
 	client$connect()
 	
 	if (stopOnExit) on.exit(stopIBDataServer(client))
@@ -34,11 +34,19 @@ stopIBDataServer <- function(client = .IBData$client) {
 #' @param refreshRate the minimum time in seconds between consecutive exchanges of data between the quote server session and this session
 #' @param port the port number of IBData server / Rshare session
 #' @export
-subscribeToIBDataServer <- function(port = 7789) {
-	try(startRshare(port=port, client.only=TRUE))
+subscribeToIBDataServer <- function(port = 7789, quietly = FALSE) {
+	result <- try(startRshare(port=port, client.only=TRUE),silent=TRUE)
 	
-	# Set as subscribed
-	set.subscribed(port, TRUE)
+	if (inherits(result,"try-error")) {
+		if (isTRUE(quietly)) {
+			ret <- FALSE
+		} else stop(paste("Unable to connect to IBData server on port",port))
+	} else {
+		# Set as subscribed
+		set.subscribed(port, TRUE)
+		ret <- TRUE
+	}
+	invisible(ret)
 }
 
 set.subscribed <- function(port, val = TRUE) {
