@@ -34,7 +34,7 @@ stopIBDataServer <- function(client = .IBData$client) {
 #' @param refreshRate the minimum time in seconds between consecutive exchanges of data between the quote server session and this session
 #' @param port the port number of IBData server / Rshare session
 #' @export
-subscribeToIBDataServer <- function(refreshRate = 1, port = 7789) {
+subscribeToIBDataServer <- function(port = 7789) {
 	try(startRshare(port=port, client.only=TRUE))
 	
 	# Set as subscribed
@@ -47,6 +47,7 @@ set.subscribed <- function(port, val = TRUE) {
 	.IBData$subscribed <- val
 }
 
+#' @export
 is.subscribed <- function() {
 	if (is.null(.IBData$subscribed)) subscribed <- FALSE else subscribed <- .IBData$subscribed
 	subscribed
@@ -54,7 +55,7 @@ is.subscribed <- function() {
 
 # Client requests
 #' @export
-clientGetSymbolData <- function(Symbols, fields = NULL, port = .IBData$port) {
+clientGetSymbolData <- function(Symbols = NULL, fields = NULL, port = .IBData$port) {
 	if (!is.subscribed()) stop("must be subscribed to IBData server")
 	
 	req <- structure(list(Symbols = Symbols, fields = fields), class="symbolDataReq")

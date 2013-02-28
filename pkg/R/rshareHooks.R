@@ -4,6 +4,8 @@ symbolDataReqHook <- function(obj, port) {
 	fields <- obj$fields
 	
 	#Symbols <- Symbols[which(Symbols %in% ls(.IBData))]
+	if (is.null(Symbols)) Symbols <- setdiff(ls(.IBData),"client")
+	
 	symData <- as.list(.IBData)[Symbols]
 	names(symData) <- Symbols
 	
@@ -11,17 +13,15 @@ symbolDataReqHook <- function(obj, port) {
 }
 
 contractDetailsReqHook <- function(obj, port) {
-	do.call(.IBData$client$reqContractDetails,obj)
+	do.call(.IBData$client$reqContractDetails, obj)
 }
 
 subscribeToContractsReqHook <- function(obj, port) {
-	do.call(.IBData$client$subscribeToContracts,obj)
+	do.call(.IBData$client$subscribeToContracts, obj)
 }
 
 ## TODO: implement these request hooks
 # subscribeToSymbols
-# subscribeToContracts
-
 # reqCurrentTime = function() #ret
 # reqFAIds = function() #ret
 # reqIds = function(numIds = 1) #ret
