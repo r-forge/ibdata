@@ -2,7 +2,7 @@
 \alias{subscribeToIBDataServer}
 \title{Subscribe to the Quote Server}
 \usage{
-  subscribeToIBDataServer(refreshRate = 1, port = 7789)
+  subscribeToIBDataServer(port = 7789)
 }
 \arguments{
   \item{refreshRate}{the minimum time in seconds between

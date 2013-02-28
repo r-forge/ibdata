@@ -101,7 +101,7 @@ eClient <- setRefClass("eClient",
 			#params$load.instruments <- NULL
 			
 			if (is.null(params$clientId)) params$clientId <- 1L else params$clientId <- as.integer(params$clientId) # default clientId is 1
-			#if (is.null(params$nextTickerId)) params$nextTickerId <- "1" else params$nextTickerId <- as.character(params$nextTickerId) # default nextTickerId is "1"
+			if (is.null(params$verbose)) params$verbose <- TRUE else params$verbose <- as.logical(params$verbose) # default verbose is TRUE
 			clientParameters <<- params
 			
 			# Create eClient-specific eWrapper for certain requests / methods
@@ -204,7 +204,7 @@ eClient <- setRefClass("eClient",
 		getTws = function() {
 			.self$getReader()$getTws()
 		},
-		eConnect = function(client = c("TWS","IBG"), host = "localhost", port = NULL, timeout = 5, verbose=TRUE) {
+		eConnect = function(client = c("TWS","IBG"), host = "localhost", port = NULL, timeout = 5, verbose=.self$getParameter("verbose")) {
 			if (.self$isConnected()) message("already connected to TWS")
 			
 			# connect to TWS
@@ -212,19 +212,20 @@ eClient <- setRefClass("eClient",
 			
 			if (verbose) message("Successfully connected to TWS")
 		},
-		eDisconnect = function(verbose = TRUE) {
+		eDisconnect = function(verbose = .self$getParameter("verbose")) {
 			if (.self$isConnected()) .self$getReader()$disconnect()
 			if (verbose) message("Disconnected from TWS")
 		},
-		connect = function(client = c("TWS","IBG"), host = "localhost", port = NULL, timeout = 5, verbose = TRUE) {
+		connect = function(client = c("TWS","IBG"), host = "localhost", port = NULL, timeout = 5, verbose = .self$getParameter("verbose")) {
 			.self$eConnect(client, host=host, port=port, timeout=timeout, verbose=verbose)
 		},
-		disconnect = function(verbose = TRUE) {
+		disconnect = function(verbose = .self$getParameter("verbose")) {
 			.self$eDisconnect(verbose)
 		},
 		
 		# eReader pass through methods
 		run = function(...) {
+			if (isTRUE(.self$getParameter("verbose"))) message("eClient callback loop initated...")
 			.self$checkConnected("run")
 			.self$getReader()$run(...)
 		},
@@ -353,7 +354,7 @@ eClient <- setRefClass("eClient",
 				# try to search by generic symbol
 				contract <- Contracts[which(lapply(shortContracts,"[[","symbol") == symbol)]
 				# what to do for more than one match? 1) stop with error, 2) warn and return all matching contracts 3) just return top contract? not sure which is best
-				if (length(contract) > 1) stop("ambiguous symbol: more than one contract found") 
+				if (length(contract) > 1) stop(paste("ambiguous symbol ",symbol,": more than one contract found",sep="")) 
 				if (length(contract) == 0) return(NULL)
 			}
 			contract[[1]]
@@ -369,7 +370,7 @@ eClient <- setRefClass("eClient",
 			
 			.self$subscribeToContracts(Contracts, requestData=requestData)
 		},
-		subscribeToContracts = function(Contracts, requestData = TRUE, verbose=FALSE, ...) {
+		subscribeToContracts = function(Contracts, requestData = TRUE, verbose=.self$getParamater("verbose"), ...) {
 			.self$checkConnected("subscribeToContracts")
 			
 			# check Contracts
@@ -407,11 +408,13 @@ eClient <- setRefClass("eClient",
 				} else {
 					tickerId <- symbolToTickerId(symbol)
 				}
-				if (!.self$isSubscribed(symbol)) {
-					.self$reqMktData(contract, tickerId=tickerId, ...)
-					.self$setSubscribed(symbol)
-				} else if (verbose) {
-					warning(paste("already subscribed to symbol",symbol))
+				if (isTRUE(requestData)) {
+					if (!.self$isSubscribed(symbol)) {
+						.self$reqMktData(contract, tickerId=tickerId, ...)
+						.self$setSubscribed(symbol)
+					} else if (verbose) {
+						warning(paste("already subscribed to symbol",symbol))
+					}
 				}
 			}
 		},
@@ -446,7 +449,7 @@ eClient <- setRefClass("eClient",
 				if (curMsg != .twsIncomingMSG$MANAGED_ACCOUNTS) {
 					if (curMsg == .twsIncomingMSG$ERR_MSG) {
 						## TODO: write proper error handler for this
-						if (!IBrokers:::errorHandler(con, verbose, OK = c(165, 300, 366, 2104, 2106, 2107))) {
+						if (!IBrokers:::errorHandler(con, verbose=.self$getParameter("verbose"), OK = c(165, 300, 366, 2104, 2106, 2107))) {
 							warning("error in nextValidId")
 							break
 						}
@@ -479,7 +482,7 @@ eClient <- setRefClass("eClient",
 				if (curMsg != .twsIncomingMSG$NEXT_VALID_ID) {
 					if (curMsg == .twsIncomingMSG$ERR_MSG) {
 						## TODO: write proper error handler for this
-						if (!IBrokers:::errorHandler(con, verbose=TRUE, OK = c(165, 300, 366, 2104, 2106, 2107))) {
+						if (!IBrokers:::errorHandler(con, verbose=.self$getParameter("verbose"), OK = c(165, 300, 366, 2104, 2106, 2107))) {
 							warning("error in nextValidId")
 							break
 						}
@@ -566,7 +569,7 @@ eClient <- setRefClass("eClient",
 			}
 			
 		},
-		reqContractDetails = function (Contracts, reqId = "1", verbose = FALSE, ...) {
+		reqContractDetails = function (Contracts, reqId = "1", verbose = .self$getParameter("verbose"), ...) {
 			.self$checkConnected("reqContractDetails")
 			
 			if (is.twsContract(Contracts)) Contracts <- list(Contracts)
@@ -610,7 +613,7 @@ eClient <- setRefClass("eClient",
 					} else if (curMsg == .twsIncomingMSG$ERR_MSG) {
 						## TODO: write proper error handler for this
 						badSymbols <- c(badSymbols,Contracts[[length(contractDetails) + length(badSymbols) + 1]]$symbol)
-						if (!.self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper(), OK = c(165, 300, 366), verbose=TRUE)) {
+						if (!.self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper(), OK = c(165, 300, 366), verbose=verbose)) {
 							# warning("error in contract details")
 							break
 						}
@@ -650,7 +653,7 @@ eClient <- setRefClass("eClient",
 		},
 		reqHistoricalData = function(Contract, endDateTime, barSize = "1 day", duration = "1 M",
 			useRTH = "1", whatToShow = "TRADES",timeFormat = "1", tzone = "",
-			verbose = TRUE, tickerId = NULL, eventHistoricalData, file) {
+			verbose = .self$getParameter("verbose"), tickerId = NULL, eventHistoricalData, file) {
 		
 			.self$checkConnected("reqHistoricalData")
 			
@@ -754,7 +757,7 @@ eClient <- setRefClass("eClient",
 				if (length(curMsg) > 0) {
 					# watch for error messages
 					if (curMsg == .twsIncomingMSG$ERR_MSG) {
-						if (!errorHandler(con,verbose,OK=c(165,300,366,2104,2106,2107))) {
+						if (!errorHandler(con,verbose=verbose,OK=c(165,300,366,2104,2106,2107))) {
 						cat("failed.\n")
 						#stop("Unable to complete historical data request", call.=FALSE)
 						on.exit()
@@ -852,7 +855,7 @@ eClient <- setRefClass("eClient",
 				if (curMsg != .twsIncomingMSG$MANAGED_ACCTS) {
 					if (curMsg == .twsIncomingMSG$ERR_MSG) {
 						# send to clientWrapper error handler
-						if (!.self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper(), OK = c(165, 300, 366), verbose=TRUE)) {
+						if (!.self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper(), OK = c(165, 300, 366), verbose=.self$getParameter("verbose"))) {
 							#stop("unkown error in reqManagedAccts")
 							break
 						}
@@ -888,7 +891,7 @@ eClient <- setRefClass("eClient",
 				if (curMsg != .twsIncomingMSG$RECEIVE_FA) {
 					if (curMsg == .twsIncomingMSG$ERR_MSG) {
 						## TODO: write proper error handler for this
-						if (!.self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper(), OK = c(165, 300, 366), verbose=TRUE)) {
+						if (!.self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper(), OK = c(165, 300, 366), verbose=.self$getParameter("verbose"))) {
 							#warning("error in requestFA.IBData")
 							break
 						}
