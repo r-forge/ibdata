@@ -126,7 +126,7 @@ eClient <- setRefClass("eClient",
 				cat("TWS status: Connected","\n")
 				if (.self$isSimulated()) cat(" *** SIMULATED TRADING ***\n")
 				cat(paste("\t","Connected at:",format(.self$getTws()$connected.at,format="%Y-%m-%d %H:%M:%S %Z")),"\n")
-				cat(paste("\t","TWS Client ID:",.self$getTws()$clientId,"\n")
+				cat(paste("\t","TWS Client ID:",.self$getTws()$clientId),"\n")
 				cat(paste("\t","Port:",.self$getTws()$port),"\n")
 				cat(paste("\t","Account Id:",.self$getAccountId()),"\n")
 				if (.self$getFAStatus()) {
