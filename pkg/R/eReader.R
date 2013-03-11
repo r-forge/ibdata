@@ -85,48 +85,50 @@ eReader <- setRefClass("eReader",
 					stop(paste("connection attempt to TWS on port",port,"timed-out after",timeout,"seconds"),call.=FALSE)
 				}
 				
-				if (curMsg == .twsIncomingMSG$NEXT_VALID_ID) {
-					# set next valid Id for client
-					nextValidId <- .self$processMsg(curMsg, s, eWrapper=.self$getParent()$getClientWrapper())
-					.self$getParent()$parameters(nextTickerId = nextValidId)
-					next
-				} else if (curMsg == .twsIncomingMSG$MANAGED_ACCTS) {
-					accts <- .self$processMsg(curMsg, s, eWrapper=.self$getParent()$getClientWrapper())
-					.self$getParent()$parameters(accountId=accts[1])
-					
-					# check if simulated trading / paper trader account
-					checkChar <- 1
-					if (identical(substr(accts[1],checkChar,checkChar),"D")) {
-						.self$getParent()$parameters(simulated=TRUE)
-						checkChar <- 2
-					} else .self$getParent()$parameters(simulated=FALSE)
-					
-					# check if advisor account
-					if (identical(substr(accts[1],checkChar,checkChar),"F") || (length(accts) > 1)) { # advisor
-						.self$getParent()$setFAStatus(TRUE)
-						if (length(accts) > 1) .self$getParent()$setFAAccts(accts[2:length(accts)])
-					} else {
-						.self$getParent()$setFAStatus(FALSE)
-					}
-					next
-				} else if (curMsg == .twsIncomingMSG$ERR_MSG) {
-					errMsg <- readBin(s, character(), 4)
-					
-					if (errMsg[3] %in% c("2103","2104","2105","2106","2107","2108")) {
-						# mkt data farm msg
-						if (verbose) cat(errMsg[4],"\n")
+				if (length(curMsg) > 0) {
+					if (curMsg == .twsIncomingMSG$NEXT_VALID_ID) {
+						# set next valid Id for client
+						nextValidId <- .self$processMsg(curMsg, s, eWrapper=.self$getParent()$getClientWrapper())
+						.self$getParent()$parameters(nextTickerId = nextValidId)
 						next
+					} else if (curMsg == .twsIncomingMSG$MANAGED_ACCTS) {
+						accts <- .self$processMsg(curMsg, s, eWrapper=.self$getParent()$getClientWrapper())
+						.self$getParent()$parameters(accountId=accts[1])
+						
+						# check if simulated trading / paper trader account
+						checkChar <- 1
+						if (identical(substr(accts[1],checkChar,checkChar),"D")) {
+							.self$getParent()$parameters(simulated=TRUE)
+							checkChar <- 2
+						} else .self$getParent()$parameters(simulated=FALSE)
+						
+						# check if advisor account
+						if (identical(substr(accts[1],checkChar,checkChar),"F") || (length(accts) > 1)) { # advisor
+							.self$getParent()$setFAStatus(TRUE)
+							if (length(accts) > 1) .self$getParent()$setFAAccts(accts[2:length(accts)])
+						} else {
+							.self$getParent()$setFAStatus(FALSE)
+						}
+						next
+					} else if (curMsg == .twsIncomingMSG$ERR_MSG) {
+						errMsg <- readBin(s, character(), 4)
+						
+						if (errMsg[3] %in% c("2103","2104","2105","2106","2107","2108")) {
+							# mkt data farm msg
+							if (verbose) cat(errMsg[4],"\n")
+							next
+						} else {
+							close(s)
+							on.exit()
+							cat("Error: ",errMsg[4],"\n")
+							cat("Trying to reconnect...\n")
+							if (identical(as.integer(errMsg[3]),326L)) clientId <- clientId + 1 
+							return(.self$clientConnect(clientId=clientId, host=host, port=port, timeout=(timeout - (Sys.time()-start.time)), blocking=blocking, verbose=verbose))
+						}
 					} else {
-						close(s)
-						on.exit()
-						cat("Error: ",errMsg[4],"\n")
-						cat("Trying to reconnect...\n")
-						if (identical(as.integer(errMsg[3]),326L)) clientId <- clientId + 1 
-						return(.self$clientConnect(clientId=clientId, host=host, port=port, timeout=(timeout - (Sys.time()-start.time)), blocking=blocking, verbose=verbose))
+						# just deal with other message in usual way using normal eWrapper
+						.self$processMsg(curMsg, s)
 					}
-				} else {
-					# just deal with other message in usual way using normal eWrapper
-					.self$processMsg(curMsg, s)
 				}
 			}
 			on.exit() # successful connection, so unregister socket close function
