@@ -17,10 +17,6 @@ client$connect()
 # Show client information 
 client
 
-#client$trace(subscribeToContracts,browser)
-#client$trace(reqMktData,browser)
-client$trace(reqHistoricalData,browser)
-
 # You can provide contracts manually and subscribe to them
 #futureContracts <- list(twsFuture("ES","GLOBEX","201212"),twsFuture("GC","NYMEX","201212"),twsFuture("GC","NYMEX","201212"))
 equityContracts <- list(twsEquity("SPY"),twsEquity("QQQ"),twsEquity("IWM"))
@@ -35,6 +31,8 @@ client$run()
 .IBData[["SPY"]] #or...
 client$getWrapper()$getSymbolData("SPY")
 
+
+#################################################### EXAMPLE 2 ######################################################################
 # You can also use the FinancialInstrument package to define your contracts, although this is far from a complete integration with FI
 # First, load your instruments and then subscribe to the symbols. 
 # The eClient will look for and try to use instrument definitions for those symbols
