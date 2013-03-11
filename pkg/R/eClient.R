@@ -446,22 +446,24 @@ eClient <- setRefClass("eClient",
 			while (TRUE) {
 				socketSelect(list(con), FALSE, NULL)
 				curMsg <- readBin(con, character(), 1)
-				if (curMsg != .twsIncomingMSG$MANAGED_ACCOUNTS) {
-					if (curMsg == .twsIncomingMSG$ERR_MSG) {
-						## TODO: write proper error handler for this
-						if (!IBrokers:::errorHandler(con, verbose=.self$getParameter("verbose"), OK = c(165, 300, 366, 2104, 2106, 2107))) {
-							warning("error in nextValidId")
-							break
+				if (length(curMsg) > 0) {
+					if (curMsg != .twsIncomingMSG$MANAGED_ACCOUNTS) {
+						if (curMsg == .twsIncomingMSG$ERR_MSG) {
+							## TODO: write proper error handler for this
+							if (!IBrokers:::errorHandler(con, verbose=.self$getParameter("verbose"), OK = c(165, 300, 366, 2104, 2106, 2107))) {
+								warning("error in nextValidId")
+								break
+							}
+						} else {
+							# just deal with other message in usual way
+							.self$processMsg(curMsg, con)
 						}
-					} else {
-						# just deal with other message in usual way
-						.self$processMsg(curMsg, con)
+					} else { 
+						# return
+						faIds <- c(faIds, .self$processMsg(curMsg, con))
+						break
+						#if (length(faIds) >= numIds) break
 					}
-				} else { 
-					# return
-					faIds <- c(faIds, .self$processMsg(curMsg, con))
-					break
-					#if (length(faIds) >= numIds) break
 				}
 			}
 			faIds
@@ -479,21 +481,23 @@ eClient <- setRefClass("eClient",
 			while (TRUE) {
 				socketSelect(list(con), FALSE, NULL)
 				curMsg <- readBin(con, character(), 1)
-				if (curMsg != .twsIncomingMSG$NEXT_VALID_ID) {
-					if (curMsg == .twsIncomingMSG$ERR_MSG) {
-						## TODO: write proper error handler for this
-						if (!IBrokers:::errorHandler(con, verbose=.self$getParameter("verbose"), OK = c(165, 300, 366, 2104, 2106, 2107))) {
-							warning("error in nextValidId")
-							break
+				if (length(curMsg) > 0) { 
+					if (curMsg != .twsIncomingMSG$NEXT_VALID_ID) {
+						if (curMsg == .twsIncomingMSG$ERR_MSG) {
+							## TODO: write proper error handler for this
+							if (!IBrokers:::errorHandler(con, verbose=.self$getParameter("verbose"), OK = c(165, 300, 366, 2104, 2106, 2107))) {
+								warning("error in nextValidId")
+								break
+							}
+						} else {
+							# just deal with other message using normal eWrapper
+							.self$processMsg(curMsg, con, eWrapper=.self$getWrapper())
 						}
-					} else {
-						# just deal with other message using normal eWrapper
-						.self$processMsg(curMsg, con, eWrapper=.self$getWrapper())
+					} else { 
+						# return
+						nextIds <- c(nextIds, .self$processMsg(curMsg, con))
+						if (length(nextIds) >= numIds) break
 					}
-				} else { 
-					# return
-					nextIds <- c(nextIds, .self$processMsg(curMsg, con))
-					if (length(nextIds) >= numIds) break
 				}
 			}
 			nextIds
@@ -605,26 +609,28 @@ eClient <- setRefClass("eClient",
 			while (TRUE) {
 				socketSelect(list(con), FALSE, NULL)
 				curMsg <- readBin(con, character(), 1)
-				if (curMsg != .twsIncomingMSG$CONTRACT_DATA) {
-					if (curMsg == .twsIncomingMSG$CONTRACT_DATA_END) {
-						.self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper())
-						
-						if (length(contractDetails) >= length(Contracts)) break
-					} else if (curMsg == .twsIncomingMSG$ERR_MSG) {
-						## TODO: write proper error handler for this
-						badSymbols <- c(badSymbols,Contracts[[length(contractDetails) + length(badSymbols) + 1]]$symbol)
-						if (!.self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper(), OK = c(165, 300, 366), verbose=verbose)) {
-							# warning("error in contract details")
-							break
+				if (length(curMsg) > 0) { 
+					if (curMsg != .twsIncomingMSG$CONTRACT_DATA) {
+						if (curMsg == .twsIncomingMSG$CONTRACT_DATA_END) {
+							.self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper())
+							
+							if (length(contractDetails) >= length(Contracts)) break
+						} else if (curMsg == .twsIncomingMSG$ERR_MSG) {
+							## TODO: write proper error handler for this
+							badSymbols <- c(badSymbols,Contracts[[length(contractDetails) + length(badSymbols) + 1]]$symbol)
+							if (!.self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper(), OK = c(165, 300, 366), verbose=verbose)) {
+								# warning("error in contract details")
+								break
+							}
+						} else {
+							# just deal with other message in usual way
+							.self$processMsg(curMsg, con, eWrapper=.self$getWrapper())
 						}
-					} else {
-						# just deal with other message in usual way
-						.self$processMsg(curMsg, con, eWrapper=.self$getWrapper())
+					} else { 
+						# contractDetails object returned from clientWrapper
+						contractDetails[[length(contractDetails) + 1]] <- .self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper())
+						#if (length(contractDetails) == length(Contracts)) break
 					}
-				} else { 
-					# contractDetails object returned from clientWrapper
-					contractDetails[[length(contractDetails) + 1]] <- .self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper())
-					#if (length(contractDetails) == length(Contracts)) break
 				}
 			}
 			if (length(contractDetails) == 1) contractDetails[[1]] else contractDetails
@@ -852,21 +858,23 @@ eClient <- setRefClass("eClient",
 			while (TRUE) {
 				socketSelect(list(con), FALSE, NULL)
 				curMsg <- readBin(con, character(), 1)
-				if (curMsg != .twsIncomingMSG$MANAGED_ACCTS) {
-					if (curMsg == .twsIncomingMSG$ERR_MSG) {
-						# send to clientWrapper error handler
-						if (!.self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper(), OK = c(165, 300, 366), verbose=.self$getParameter("verbose"))) {
-							#stop("unkown error in reqManagedAccts")
-							break
+				if (length(curMsg) > 0) { 
+					if (curMsg != .twsIncomingMSG$MANAGED_ACCTS) {
+						if (curMsg == .twsIncomingMSG$ERR_MSG) {
+							# send to clientWrapper error handler
+							if (!.self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper(), OK = c(165, 300, 366), verbose=.self$getParameter("verbose"))) {
+								#stop("unkown error in reqManagedAccts")
+								break
+							}
+						} else {
+							# deal with other message using main eWrapper
+							.self$processMsg(curMsg, con)
 						}
-					} else {
-						# deal with other message using main eWrapper
-						.self$processMsg(curMsg, con)
+					} else { 
+						# managed acct data -- use clientWrapper
+						faAccts <- .self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper())
+						break
 					}
-				} else { 
-					# managed acct data -- use clientWrapper
-					faAccts <- .self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper())
-					break
 				}
 			}
 			return(faAccts)
@@ -888,21 +896,23 @@ eClient <- setRefClass("eClient",
 			while (TRUE) {
 				socketSelect(list(con), FALSE, NULL)
 				curMsg <- readBin(con, character(), 1)
-				if (curMsg != .twsIncomingMSG$RECEIVE_FA) {
-					if (curMsg == .twsIncomingMSG$ERR_MSG) {
-						## TODO: write proper error handler for this
-						if (!.self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper(), OK = c(165, 300, 366), verbose=.self$getParameter("verbose"))) {
-							#warning("error in requestFA.IBData")
-							break
+				if (length(curMsg) > 0) { 
+					if (curMsg != .twsIncomingMSG$RECEIVE_FA) {
+						if (curMsg == .twsIncomingMSG$ERR_MSG) {
+							## TODO: write proper error handler for this
+							if (!.self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper(), OK = c(165, 300, 366), verbose=.self$getParameter("verbose"))) {
+								#warning("error in requestFA.IBData")
+								break
+							}
+						} else {
+							# deal with other message using main eWrapper
+							.self$processMsg(curMsg, con)
 						}
-					} else {
-						# deal with other message using main eWrapper
-						.self$processMsg(curMsg, con)
+					} else { 
+						# managed acct data -- use clientWrapper
+						faResponse <- .self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper())
+						break
 					}
-				} else { 
-					# managed acct data -- use clientWrapper
-					faResponse <- .self$processMsg(curMsg, con, eWrapper=.self$getClientWrapper())
-					break
 				}
 			}
 			faResponse
