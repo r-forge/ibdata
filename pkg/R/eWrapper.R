@@ -60,13 +60,8 @@ eWrapper.IBData <- setRefClass("eWrapper.IBData",
 			# try to start Rshare server
 			if (is.null(params$startServer)) startServer <- TRUE else startServer <- as.logical(params$startServer)
 			if (startServer) { # should be its own function probably
-				res <- try(startRshare(port=port, server.only=TRUE, verbose=verbose), silent=TRUE)
+				res <- try(.self$startServer(verbose), silent=TRUE)
 				if (inherits(res,"try-error")) stop(paste("Error initializing eWrapper : unable to start Rshare server on port",port),call.=FALSE)
-				
-				# register Rshare hooks for accessing market data and controlling client
-				registerRshareHook("symbolDataReq",symbolDataReqHook,port=port,doResponse=TRUE)
-				registerRshareHook("contractDetailsReq",contractDetailsReqHook,port=port,doResponse=TRUE)
-				registerRshareHook("subscribeToContractsReq",subscribeToContractsReqHook,port=port,doResponse=FALSE)
 			}
 			
 		},
@@ -79,6 +74,26 @@ eWrapper.IBData <- setRefClass("eWrapper.IBData",
 		},
 		getParent = function() {
 			.IBData$client
+		},
+		
+		# Rshare server functions
+		isServerRunning = function() {
+			status <- getStatus(.self$port)
+			if (identical(status,"server")) return(TRUE) else return(FALSE)
+		},
+		startServer = function(verbose = TRUE) {
+			if (.self$isServerRunning()) stop("IBData Rshare server is already started")
+			
+			res <- try(startRshare(port=.self$port, server.only=TRUE, verbose=verbose), silent=TRUE)
+			if (inherits(res,"try-error")) stop(paste("Error starting eWrapper Rshare server : unable to start Rshare server on port",.self$port),call.=FALSE)
+			
+			.self$registerIBDataHooks()
+		},
+		registerIBDataHooks = function() {
+			# register Rshare hooks for accessing market data and controlling client
+			registerRshareHook("symbolDataReq", symbolDataReqHook, port=.self$port, doResponse=TRUE)
+			registerRshareHook("contractDetailsReq", contractDetailsReqHook, port=.self$port, doResponse=TRUE)
+			registerRshareHook("subscribeToContractsReq", subscribeToContractsReqHook, port=.self$port, doResponse=FALSE)
 		},
 		
 		# Data handling functions
